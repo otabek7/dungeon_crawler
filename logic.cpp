@@ -113,8 +113,10 @@ void deleteMap(char**& map, int& maxRow) {
     {
         delete[] map[i];
     }
-    maxRow*=2;
+    
+    maxRow = 0;
     delete [] map;
+    map = nullptr;
 }
 
 /**
@@ -198,7 +200,55 @@ char** resizeMap(char** map, int& maxRow, int& maxCol) {
  * @update map contents, player
  */
 int doPlayerMove(char** map, int maxRow, int maxCol, Player& player, int nextRow, int nextCol) {
-    return 0;
+
+    //default status
+    int statusFlag = STATUS_MOVE;
+    bool monsterNext = (map[nextRow][nextCol] == TILE_MONSTER);
+    bool pillarNext = (map[nextRow][nextCol] == TILE_PILLAR);
+    bool treasureNext = (map[nextRow][nextCol] == TILE_TREASURE);
+    bool amuletNext = (map[nextRow][nextCol] == TILE_AMULET);
+    bool doorNext = (map[nextRow][nextCol] == TILE_DOOR);
+    bool exitNext = (map[nextRow][nextCol] == TILE_EXIT);
+
+
+
+    if(nextRow>= maxRow || nextCol >= maxCol || nextRow < 0 || nextCol < 0 || pillarNext || monsterNext){
+        nextRow = player.row;
+        nextCol = player.col;
+        statusFlag = STATUS_STAY;
+    }
+    if(treasureNext){
+        player.treasure += 1;
+        statusFlag = STATUS_TREASURE;
+
+    }
+    if(amuletNext)
+        statusFlag = STATUS_AMULET;
+    if(doorNext)
+        statusFlag = STATUS_LEAVE;
+    if(exitNext){
+        //if the player has no treasure, then stay
+        if (player.treasure < 1)
+        {
+            nextRow = player.row;
+            nextCol = player.col;
+            statusFlag = STATUS_STAY;
+        }
+
+        //if player has treasure, escape
+        else
+            statusFlag = STATUS_ESCAPE;
+
+    }
+
+    //updating values to open and player
+    map[player.row][player.col] = TILE_OPEN;
+    map[nextRow][nextCol] = TILE_PLAYER;
+    //updating the column and rows
+    player.col = nextCol;
+    player.row = nextRow;
+    //returning the status
+    return statusFlag;
 }
 
 /**
