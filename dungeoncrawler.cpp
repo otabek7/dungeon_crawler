@@ -42,7 +42,7 @@ int main() {
         // move player
         char input = 0;
         int status = 0;
-        while (false) {
+        while (true) {
             // get user input
             cout << "Enter command (w,a,s,d: move, e: stay still, q: quit): ";
             cin >> input;

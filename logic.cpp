@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -16,37 +17,80 @@ using std::cout, std::endl, std::ifstream, std::string;
  * @return  pointer to 2D dynamic array representation of dungeon map with player's location., or nullptr if loading fails for any reason
  * @updates  maxRow, maxCol, player
  */
-char** loadLevel(const string& fileName, int& maxRow, int& maxCol, Player& player) {
+char **loadLevel(const string &fileName, int &maxRow, int &maxCol, Player &player)
+{
     std::ifstream file(fileName);
+
+    //series of check to check if the file failed to open and if the contens are bad
     if (!file.is_open())
     {
-        cout << "Error: failed to open input file - " << fileName << endl;
         return nullptr;
     }
 
     file >> maxRow;
-    if(file.fail() || file.eof())
+    if (file.fail() || maxRow <= 0)
         return nullptr;
 
     file >> maxCol;
-    if(file.fail() || file.eof())
+    if (file.fail() || maxCol <= 0 || (maxCol > (INT32_MAX / ((double)maxRow))))
         return nullptr;
 
-    //creating the map
-    char** dungeonMap = createMap(maxRow,maxCol);
-    if (dungeonMap == nullptr)
+
+    //checking for player row if good or bad
+    file >> player.row;
+    if (file.fail() || player.row < 0 || player.row >= maxRow)
         return nullptr;
-    //populating the associated row and column with the adventurer
-    for (int row = 0; row < maxRow; row++) {
-        for (int col = 0; col < maxCol; col++) {
-            file >> dungeonMap[row][col];
-            if (row == player.row && col == player.col) {
-                dungeonMap[col][row] = TILE_PLAYER;
-            }
-        }
+    file >> player.col;
+    if (file.fail() || player.col < 0 || player.col >= maxCol)
+        return nullptr;
+
+        // initializing a char array with maxRow set
+    char **levelLoad = new char *[maxRow];
+
+    // populating each row with a column
+    for (int row = 0; row < maxRow; row++)
+    {
+        levelLoad[row] = new char[maxCol];
     }
 
-    return dungeonMap;
+    char character;
+
+    bool trigger;
+    trigger = false;
+
+    for (int row = 0; row < maxRow; row++)
+    {
+        for (int col = 0; col < maxCol; col++)
+        {
+            //checking the character of each character in the file
+            file >> character;
+            //if one of these tiles are met, then return a nullptr automatically
+            if (character != TILE_OPEN && character != TILE_PLAYER && character != TILE_TREASURE && character != TILE_AMULET && character != TILE_MONSTER && character != TILE_PILLAR && character != TILE_DOOR && character != TILE_EXIT)
+                return nullptr;
+            //else if it is a door or exit then trigger is true
+            if (character == TILE_DOOR)
+                trigger = true;
+            if(character == TILE_EXIT)
+                trigger = true;
+            //if the file reaches the end then thats bad
+            if (file.eof())
+                return nullptr;
+            
+            levelLoad[row][col] = character;
+        }
+    }
+    if (trigger == false)
+        return nullptr;
+
+    //checking if end of file didnt reach
+    file >> character;
+    if (!file.eof())
+        return nullptr;
+
+
+    //assigning with level load tile player
+    levelLoad[player.row][player.col] = TILE_PLAYER;
+    return levelLoad;
 }
 
 /**
@@ -58,17 +102,17 @@ char** loadLevel(const string& fileName, int& maxRow, int& maxCol, Player& playe
  * @param   nextCol     Player's next column on dungeon map (left/right).
  * @updates  nextRow, nextCol
  */
-void getDirection(char input, int& nextRow, int& nextCol) {
-    
-    if(input == MOVE_UP)
-        nextRow--; //since row starts at index 0 from the top
-    if(input == MOVE_DOWN)
-        nextRow++;
-    if(input == MOVE_LEFT)
-        nextCol--;
-    if(input == MOVE_RIGHT)
-        nextCol++;
-
+void getDirection(char input, int &nextRow, int &nextCol)
+{
+    //self explanatory
+    if (input == MOVE_UP)
+        nextRow -= 1; 
+    if (input == MOVE_DOWN)
+        nextRow += 1;
+    if (input == MOVE_LEFT)
+        nextCol -= 1;
+    if (input == MOVE_RIGHT)
+        nextCol += 1;
 }
 
 /**
@@ -79,23 +123,27 @@ void getDirection(char input, int& nextRow, int& nextCol) {
  * @param   maxCol      Number of columns in the dungeon table (aka width).
  * @return  2D map array for the dungeon level, holds char type.
  */
-char** createMap(int maxRow, int maxCol) {
+char **createMap(int maxRow, int maxCol)
+{
 
-    //creating an array of char type with the maximum amount of rows
-    char** map = new char* [maxRow];
+    // creating an array of char type with the maximum amount of rows TODO
+    char **map = new char *[maxRow];
 
+    // initializing each row with a column
+    for (int i = 0; i < maxRow; i++)
+    {
+        map[i] = new char[maxCol];
+    }
+
+    // initializing each row and column with tile open
     for (int row = 0; row < maxRow; row++)
     {
-        //populating each row with a column
-        map[row] = new char[maxCol];
-        for (int column = 0; column < maxRow; column++)
+        for (int col = 0; col < maxCol; col++)
         {
-            //populating each row, column with TILE_OPEN
-            map[row][column] = TILE_OPEN;
+            map[row][col] = TILE_OPEN;
         }
-        
     }
-    
+
     return map;
 }
 
@@ -107,16 +155,24 @@ char** createMap(int maxRow, int maxCol) {
  * @return None
  * @update map, maxRow
  */
-void deleteMap(char**& map, int& maxRow) {
+void deleteMap(char **&map, int &maxRow)
+{
+    // deleting each index of map
+    if(map != nullptr)
+    {    
 
     for (int i = 0; i < maxRow; i++)
     {
         delete[] map[i];
     }
-    
+
+    delete[] map;
     maxRow = 0;
-    delete [] map;
     map = nullptr;
+    }
+    else{
+    maxRow = 0;    
+    }
 }
 
 /**
@@ -131,54 +187,74 @@ void deleteMap(char**& map, int& maxRow) {
  * @return  pointer to a dynamically-allocated 2D array (map) that has twice as many columns and rows in size.
  * @update maxRow, maxCol
  */
-char** resizeMap(char** map, int& maxRow, int& maxCol) {
+char **resizeMap(char **map, int &maxRow, int &maxCol)
+{
 
-    //initializing a char array with the rows doubled
-    int doubledRow = maxRow*2;
-    int doubledCol = maxCol*2;
+    // initializing a char array with the rows doubled
+    int doubledRow = maxRow * 2;
+    int doubledCol = maxCol * 2;
+    double dmaxRow = (double)maxRow;
 
-    char **resizedMap = new char*[doubledRow];
+    //resizing the created map with those parameters
+    char **resizedMap = createMap(doubledRow, doubledCol);
 
-    for (int row = 0; row < doubledRow; row++)
+    //checking for abnormalities
+    if (map == nullptr || (maxCol > (INT32_MAX / (dmaxRow))))
+        return nullptr;
+
+    //resizing the row,col
+    for (int row = 0; row < maxRow; row++)
     {
-        //adding columns to each array row
-        resizedMap[row] = new char[doubledCol];
-        //populating each row/column with the original values 
-        if(row < maxRow){
-            for(int col = 0; col < maxCol; col++){
-                resizedMap[row][col] = map[row][col];
-            }
+        for (int col = 0; col < maxCol; col++)
+        {
+            resizedMap[row][col] = map[row][col];
         }
     }
+    //checking if resized map has a tile player and resizing second sec
+    for (int row = 0; row < maxRow; row++)
+    {
+        for (int col = maxCol; col < doubledCol; col++)
+        {
+            if (map[row][col - maxCol] == TILE_PLAYER)
+                resizedMap[row][col] = TILE_OPEN;
 
-    //declaring the original char
-    char original;
-
-    for(int row = 0; row < maxRow; row++){
-        for(int col = 0; col < maxCol; col++){
-            original = map[row][col];
-            //in the event that the char at the location is not the adventurer, set it equal to the original char
-            if(map[row][col] != TILE_PLAYER){
-                resizedMap[row+maxRow][col+maxCol] = original;
-                resizedMap[row][col+maxCol] = original;
-                resizedMap[row+maxRow][col] = original;
-            }
-            //if it is the adventurer, set the array at location above, left and right to tile open
             else
-            {
-                resizedMap[row+maxRow][col+maxCol] = TILE_OPEN;
-                resizedMap[row][col+maxCol] = TILE_OPEN;
-                resizedMap[row+maxRow][col] = TILE_OPEN;
-            }
+                resizedMap[row][col] = map[row][col - maxCol];
         }
     }
 
-    //clear memory
-    deleteMap(map, maxRow);
-    //double the row and columns
-    maxRow *= 2;
-    maxCol *= 2;
+    //resizing the third section
+    for (int row = maxRow; row < doubledRow; row++)
+    {
+        for (int col = 0; col < maxCol; col++)
+        {
+            if (map[row - maxRow][col] == TILE_PLAYER)
+                resizedMap[row][col] = TILE_OPEN;
+
+            else
+                resizedMap[row][col] = map[row - maxRow][col];
+        }
+    }
     
+    //checking if second resized map has a tile player and resizing fourth sec
+    for (int row = maxRow; row < doubledRow; row++)
+    {
+        for (int col = maxCol; col < doubledCol; col++)
+        {
+            if (map[row - maxRow][col - maxCol] == TILE_PLAYER)
+                resizedMap[row][col] = TILE_OPEN;
+
+            else
+                resizedMap[row][col] = map[row - maxRow][col - maxCol];
+        }
+    }
+
+    //clearing
+    deleteMap(map, maxRow);
+
+    maxRow = doubledRow;
+    maxCol *= 2;
+
     return resizedMap;
 }
 
@@ -186,7 +262,7 @@ char** resizeMap(char** map, int& maxRow, int& maxCol) {
  * TODO: Student implement this function
  * Checks if the player can move in the specified direction and performs the move if so.
  * Cannot move out of bounds or onto TILE_PILLAR or TILE_MONSTER.
- * Cannot move onto TILE_EXIT without at least one treasure. 
+ * Cannot move onto TILE_EXIT without at least one treasure.
  * If TILE_TREASURE, increment treasure by 1.
  * Remember to update the map tile that the player moves onto and return the appropriate status.
  * You can use the STATUS constants defined in logic.h to help!
@@ -199,56 +275,76 @@ char** resizeMap(char** map, int& maxRow, int& maxCol) {
  * @return  Player's movement status after updating player's position.
  * @update map contents, player
  */
-int doPlayerMove(char** map, int maxRow, int maxCol, Player& player, int nextRow, int nextCol) {
+int doPlayerMove(char **map, int maxRow, int maxCol, Player &player, int nextRow, int nextCol)
+{
+    int status = STATUS_STAY;
+    // int statusFlag = STATUS_MOVE;
+    // bool monsterNext = (map[nextRow][nextCol] == TILE_MONSTER);
+    // bool pillarNext = (map[nextRow][nextCol] == TILE_PILLAR);
+    // bool treasureNext = (map[nextRow][nextCol] == TILE_TREASURE);
+    // bool amuletNext = (map[nextRow][nextCol] == TILE_AMULET);
+    // bool doorNext = (map[nextRow][nextCol] == TILE_DOOR);
+    // bool exitNext = (map[nextRow][nextCol] == TILE_EXIT);
+    if (nextRow >= maxRow || nextRow < 0 || nextCol >= maxCol || nextCol < 0 || map[nextRow][nextCol] == TILE_MONSTER || map[nextRow][nextCol] == TILE_PILLAR)
+        return status;
 
-    //default status
-    int statusFlag = STATUS_MOVE;
-    bool monsterNext = (map[nextRow][nextCol] == TILE_MONSTER);
-    bool pillarNext = (map[nextRow][nextCol] == TILE_PILLAR);
-    bool treasureNext = (map[nextRow][nextCol] == TILE_TREASURE);
-    bool amuletNext = (map[nextRow][nextCol] == TILE_AMULET);
-    bool doorNext = (map[nextRow][nextCol] == TILE_DOOR);
-    bool exitNext = (map[nextRow][nextCol] == TILE_EXIT);
+        
+    if (map[nextRow][nextCol] == TILE_DOOR)
+    {
+        map[nextRow][nextCol] = TILE_PLAYER;
+        map[player.row][player.col] = TILE_OPEN;
+        player.row = nextRow;
+        player.col = nextCol;
 
-
-
-    if(nextRow>= maxRow || nextCol >= maxCol || nextRow < 0 || nextCol < 0 || pillarNext || monsterNext){
-        nextRow = player.row;
-        nextCol = player.col;
-        statusFlag = STATUS_STAY;
+        status = STATUS_LEAVE;
+        return status;
     }
-    if(treasureNext){
-        player.treasure += 1;
-        statusFlag = STATUS_TREASURE;
 
-    }
-    if(amuletNext)
-        statusFlag = STATUS_AMULET;
-    if(doorNext)
-        statusFlag = STATUS_LEAVE;
-    if(exitNext){
-        //if the player has no treasure, then stay
-        if (player.treasure < 1)
+     if (map[nextRow][nextCol] == TILE_EXIT)
+    {
+        if (player.treasure >= 1)
         {
-            nextRow = player.row;
-            nextCol = player.col;
-            statusFlag = STATUS_STAY;
+            map[nextRow][nextCol] = TILE_PLAYER;
+            map[player.row][player.col] = TILE_OPEN;
+            player.row = nextRow;
+            player.col = nextCol;
+            status = STATUS_ESCAPE;
+            return status;
         }
-
-        //if player has treasure, escape
         else
-            statusFlag = STATUS_ESCAPE;
-
+            return status;
     }
 
-    //updating values to open and player
+    
+    if (map[nextRow][nextCol] == TILE_AMULET)
+    {
+        map[nextRow][nextCol] = TILE_PLAYER;
+        map[player.row][player.col] = TILE_OPEN;
+        player.row = nextRow;
+        player.col = nextCol;
+        status = STATUS_AMULET;
+        return status;
+    }
+
+    if (map[nextRow][nextCol] == TILE_TREASURE)
+    {
+        player.treasure += 1;
+        map[nextRow][nextCol] = TILE_PLAYER;
+        map[player.row][player.col] = TILE_OPEN;
+        player.row = nextRow;
+        player.col = nextCol;
+        status = STATUS_TREASURE;
+        return status;
+    }
+    
+   
+
     map[player.row][player.col] = TILE_OPEN;
     map[nextRow][nextCol] = TILE_PLAYER;
-    //updating the column and rows
-    player.col = nextCol;
     player.row = nextRow;
-    //returning the status
-    return statusFlag;
+    player.col = nextCol;
+    status = STATUS_MOVE;
+    return status;
 }
 
 /**
@@ -266,6 +362,102 @@ int doPlayerMove(char** map, int maxRow, int maxCol, Player& player, int nextRow
  * @return  Boolean value indicating player status: true if monster reaches the player, false if not.
  * @update map contents
  */
-bool doMonsterAttack(char** map, int maxRow, int maxCol, const Player& player) {
-    return false;
+bool doMonsterAttack(char **map, int maxRow, int maxCol, const Player &player)
+{
+    bool playerDead = false;
+    int obsC = -1;
+
+    // checking for the pillar or exit in the columns behind
+    for (int i = 0; i < player.col; i++)
+    {
+        if (map[player.row][i] == TILE_PILLAR)
+            obsC = i;
+
+        if (map[player.row][i] == TILE_EXIT)
+            obsC = i;
+    }
+
+    // checking for the monster or open in the columns behind
+
+    for (int i = player.col - 1; i > -1; i--)
+    {
+        if (map[player.row][i] == TILE_MONSTER && i > obsC)
+        {
+            map[player.row][i + 1] = TILE_MONSTER;
+            map[player.row][i] = TILE_OPEN;
+        }
+    }
+    // checking for the pillar or exit in the columns ahead
+
+    obsC = maxCol;
+    for (int i = player.col + 1; i < maxCol; i++)
+    {
+        if (map[player.row][i] == TILE_PILLAR)
+            obsC = i;
+        if (map[player.row][i] == TILE_EXIT)
+            obsC = i;
+    }
+    // checking for the monster in the columns ahead
+
+    for (int j = player.col + 1; j < maxCol; j++)
+    {
+        if (map[player.row][j] == TILE_MONSTER && j < obsC)
+        {
+            map[player.row][j - 1] = TILE_MONSTER;
+            map[player.row][j] = TILE_OPEN;
+        }
+    }
+
+    int obs = -1;
+    // checking for the pillar or exit in the rows behind
+
+    for (int i = 0; i < player.row; i++)
+    {
+        if (map[i][player.col] == TILE_PILLAR)
+
+            obs = i;
+        if (map[i][player.col] == TILE_EXIT)
+            obs = i;
+    }
+    // checking for the monster in the rows behind
+
+    for (int row = player.row - 1; row > -1; row--)
+    {
+        if (map[row][player.col] == TILE_MONSTER && row > obs)
+        {
+            map[row + 1][player.col] = TILE_MONSTER;
+            map[row][player.col] = TILE_OPEN;
+        }
+    }
+
+    obs = maxRow;
+    // checking for the pillar or exit in the rows forward
+
+    for (int i = player.row + 1; i < maxRow; i++)
+    {
+        if (map[i][player.col] == TILE_EXIT)
+            obs = i;
+        if (map[i][player.col] == TILE_PILLAR)
+            obs = i;
+    }
+    // checking for the monster in the rows forward
+
+    for (int j = player.row + 1; j < maxRow; j++)
+    {
+        if (map[j][player.col] == TILE_MONSTER && j < obs)
+        {
+            map[j - 1][player.col] = TILE_MONSTER;
+            map[j][player.col] = TILE_OPEN;
+        }
+    }
+
+    //if there is a monster, the player is dead!
+    if (map[player.row][player.col] == TILE_MONSTER)
+    {
+        playerDead = true;
+        return playerDead;
+    }
+    //else he is not
+    playerDead = false;
+    return playerDead;
 }
